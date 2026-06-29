@@ -154,6 +154,9 @@ ob_start(); ?>
 <script>
 Chart.defaults.font.family = "Inter, ui-sans-serif, system-ui, sans-serif";
 Chart.defaults.color = '#94a3b8';
+const _dark = document.documentElement.classList.contains('dark');
+const _grid = _dark ? '#1e2a44' : '#f1f5f9';
+const _arcBorder = _dark ? '#111c30' : '#fff';
 new Chart(document.getElementById('chartTren'), {
   type: 'bar',
   data: { labels: <?= json_encode($labels) ?>,
@@ -163,14 +166,14 @@ new Chart(document.getElementById('chartTren'), {
   options: { responsive: true, maintainAspectRatio: false,
     plugins: { legend: { position: 'top', align: 'end', labels: { usePointStyle: true, boxWidth: 7, padding: 16 } } },
     scales: { x: { grid: { display: false }, border: { display: false }, ticks: { font: { size: 11 } } },
-      y: { beginAtZero: true, border: { display: false }, ticks: { precision: 0, font: { size: 11 } }, grid: { color: '#f1f5f9' } } } }
+      y: { beginAtZero: true, border: { display: false }, ticks: { precision: 0, font: { size: 11 } }, grid: { color: _grid } } } }
 });
 <?php if ($catData): ?>
 new Chart(document.getElementById('chartKategori'), {
   type: 'doughnut',
   data: { labels: <?= json_encode($catLabels) ?>,
     datasets: [{ data: <?= json_encode($catData) ?>,
-      backgroundColor: ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#ec4899'], borderWidth: 3, borderColor: '#fff' }] },
+      backgroundColor: ['#3b82f6','#10b981','#f59e0b','#8b5cf6','#ef4444','#06b6d4','#ec4899'], borderWidth: 3, borderColor: _arcBorder }] },
   options: { responsive: true, maintainAspectRatio: false, cutout: '64%',
     plugins: { legend: { position: 'bottom', labels: { usePointStyle: true, boxWidth: 7, padding: 14, font: { size: 11 } } } } }
 });

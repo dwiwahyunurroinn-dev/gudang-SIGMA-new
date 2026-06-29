@@ -36,6 +36,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $hash = password_hash($password, PASSWORD_DEFAULT);
                 $pdo->prepare("INSERT INTO users (username, password_hash, nama, role) VALUES (?,?,?,?)")
                     ->execute([$username, $hash, $nama, $role]);
+                audit('tambah', 'karyawan', "Tambah akun \"$nama\" ($username, $role)");
                 flash('success', "Akun \"$nama\" berhasil ditambahkan.");
             } else { // edit
                 if ($password !== '') {
@@ -46,6 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $pdo->prepare("UPDATE users SET nama=?, username=?, role=? WHERE id=?")
                         ->execute([$nama, $username, $role, $id]);
                 }
+                audit('edit', 'karyawan', "Edit akun \"$nama\" ($username, $role)");
                 flash('success', "Akun \"$nama\" berhasil diperbarui.");
             }
         }
@@ -57,14 +59,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($id === (int)$me['id']) {
             flash('error', 'Anda tidak bisa menghapus akun sendiri.');
         } else {
-            $t = $pdo->prepare("SELECT role FROM users WHERE id=?");
+            $t = $pdo->prepare("SELECT role, nama FROM users WHERE id=?");
             $t->execute([$id]);
-            $trole = $t->fetchColumn();
+            $target = $t->fetch();
+            $trole  = $target['role'] ?? '';
             $jmlAdmin = (int)$pdo->query("SELECT COUNT(*) FROM users WHERE role='admin'")->fetchColumn();
             if ($trole === 'admin' && $jmlAdmin <= 1) {
                 flash('error', 'Tidak bisa menghapus admin terakhir.');
             } else {
                 $pdo->prepare("DELETE FROM users WHERE id=?")->execute([$id]);
+                audit('hapus', 'karyawan', "Hapus akun \"" . ($target['nama'] ?? "ID $id") . "\"");
                 flash('success', 'Akun berhasil dihapus.');
             }
         }

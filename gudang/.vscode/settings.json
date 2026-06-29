@@ -1,0 +1,23 @@
+{
+  // ==========================================================================
+  // Menonaktifkan peringatan PALSU pada proyek PHP berbasis include/require.
+  // Analyzer (Intelephense) tidak mengikuti `require_once` ke file lain,
+  // sehingga $pdo, require_role(), current_user(), e(), dll. salah ditandai
+  // "undefined". Ini bukan error nyata — aplikasi berjalan normal (php -l bersih).
+  // ==========================================================================
+  "intelephense.diagnostics.undefinedVariables": false,
+  "intelephense.diagnostics.undefinedFunctions": false,
+  "intelephense.diagnostics.undefinedConstants": false,
+  "intelephense.diagnostics.undefinedClassConstants": false,
+  "intelephense.diagnostics.undefinedMethods": false,
+  "intelephense.diagnostics.undefinedProperties": false,
+  "intelephense.diagnostics.undefinedTypes": false,
+  "intelephense.diagnostics.undefinedSymbols": false,
+
+  // Bila memakai ekstensi "Error Lens" (teks merah inline), hanya tampilkan
+  // yang benar-benar error, sembunyikan warning/hint agar tidak ramai.
+  "errorLens.enabledDiagnosticLevels": ["error"],
+
+  // Validasi sintaks PHP bawaan tetap aktif (menangkap error sungguhan saja).
+  "php.validate.enable": true
+}

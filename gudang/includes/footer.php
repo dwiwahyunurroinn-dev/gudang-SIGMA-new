@@ -5,6 +5,19 @@
 <!-- ===== TOAST (notifikasi mengambang) ===== -->
 <div id="toast-wrap" class="fixed top-4 right-4 z-[70] flex flex-col gap-2.5 w-full max-w-xs pointer-events-none" aria-live="polite" aria-atomic="true"></div>
 
+<!-- ===== COMMAND PALETTE (Ctrl+K) ===== -->
+<div id="palette" class="fixed inset-0 z-[65] hidden items-start justify-center bg-black/40 p-4 pt-[12vh]">
+  <div class="palette-panel bg-white rounded-2xl w-full max-w-xl shadow-2xl overflow-hidden border border-slate-200">
+    <div class="flex items-center gap-3 px-4 border-b border-slate-100">
+      <i data-lucide="search" class="w-5 h-5 text-slate-400 shrink-0"></i>
+      <input id="palette-input" type="text" autocomplete="off" placeholder="Cari halaman atau barang..."
+        class="flex-1 py-4 bg-transparent outline-none text-sm text-slate-800 placeholder:text-slate-400">
+      <kbd class="text-[11px] font-medium bg-slate-100 text-slate-500 rounded px-1.5 py-0.5 border border-slate-200">Esc</kbd>
+    </div>
+    <div id="palette-results" class="max-h-[55vh] overflow-y-auto p-2"></div>
+  </div>
+</div>
+
 <!-- ===== MODAL KONFIRMASI ===== -->
 <div id="confirm-modal" class="fixed inset-0 z-[60] hidden items-center justify-center bg-black/40 p-4">
   <div class="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
@@ -137,6 +150,132 @@
       });
     }, true);
   })();
+
+  /* ===== Ganti tema terang / gelap ===== */
+  function updateThemeIcon(){
+    const dark = document.documentElement.classList.contains('dark');
+    document.querySelectorAll('.theme-toggle-btn').forEach(btn => {
+      btn.innerHTML = '<i data-lucide="' + (dark ? 'sun' : 'moon') + '" class="w-5 h-5"></i>';
+    });
+    lucide.createIcons();
+  }
+  function toggleTheme(){
+    const dark = document.documentElement.classList.toggle('dark');
+    try { localStorage.setItem('sigma-theme', dark ? 'dark' : 'light'); } catch(e){}
+    updateThemeIcon();
+  }
+  updateThemeIcon();
+
+  /* ===== Command Palette (Ctrl+K) ===== */
+  (function(){
+    const NAV = <?= json_encode(array_values(array_map(
+      fn($m) => ['label' => $m[1], 'icon' => $m[2], 'url' => $m[3]],
+      array_merge($menuMain, ($u['role'] === 'admin' ? $menuAdmin : []))
+    )), JSON_UNESCAPED_SLASHES) ?>;
+    const BARANG_URL  = '<?= BASE_URL ?>/karyawan/ajax/palette_search.php';
+    const RIWAYAT_URL = '<?= BASE_URL ?>/karyawan/barang_riwayat.php?id=';
+
+    const overlay = document.getElementById('palette');
+    const input   = document.getElementById('palette-input');
+    const results = document.getElementById('palette-results');
+    let items = [], active = 0, seq = 0;
+
+    window.openPalette = function(){
+      overlay.classList.remove('hidden');
+      overlay.classList.add('flex');
+      input.value = '';
+      render([], []);
+      setTimeout(() => input.focus(), 30);
+      runSearch('');
+    };
+    function closePalette(){ overlay.classList.add('hidden'); overlay.classList.remove('flex'); }
+
+    function navMatches(q){
+      q = q.toLowerCase();
+      return NAV.filter(n => !q || n.label.toLowerCase().includes(q))
+                .map(n => ({ icon:n.icon, title:n.label, sub:'Halaman', url:n.url }));
+    }
+
+    async function runSearch(q){
+      const navHits = navMatches(q);
+      let barangHits = [];
+      if (q.trim().length >= 1){
+        const my = ++seq;
+        try {
+          const r = await fetch(BARANG_URL + '?q=' + encodeURIComponent(q));
+          const d = await r.json();
+          if (my !== seq) return; // hasil usang, abaikan
+          barangHits = (d.items || []).map(b => ({
+            icon:'package', title:b.nama_barang,
+            sub:'Barang · ' + b.kode_barcode + ' · stok ' + b.stok_sekarang + ' ' + b.satuan,
+            url: RIWAYAT_URL + b.id_barang
+          }));
+        } catch(e){}
+      }
+      render(navHits, barangHits);
+    }
+
+    function render(navHits, barangHits){
+      items = [...navHits, ...barangHits];
+      active = 0;
+      if (items.length === 0){
+        results.innerHTML = '<p class="px-3 py-8 text-center text-sm text-slate-400">Tidak ada hasil.</p>';
+        return;
+      }
+      let html = '';
+      const group = (label, arr, offset) => {
+        if (!arr.length) return '';
+        let s = '<p class="px-3 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">' + label + '</p>';
+        arr.forEach((it, i) => {
+          const idx = offset + i;
+          s += '<button type="button" data-idx="' + idx + '" data-url="' + it.url + '" '
+            + 'class="palette-item w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition">'
+            + '<span class="grid place-items-center w-8 h-8 rounded-lg bg-slate-100 text-slate-500 shrink-0"><i data-lucide="' + it.icon + '" class="w-4 h-4"></i></span>'
+            + '<span class="min-w-0"><span class="block text-sm font-medium text-slate-800 truncate">' + esc(it.title) + '</span>'
+            + '<span class="block text-xs text-slate-400 truncate">' + esc(it.sub) + '</span></span></button>';
+        });
+        return s;
+      };
+      html += group('Navigasi', navHits, 0);
+      html += group('Barang', barangHits, navHits.length);
+      results.innerHTML = html;
+      lucide.createIcons();
+      highlight();
+      results.querySelectorAll('.palette-item').forEach(btn => {
+        btn.addEventListener('click', () => go(parseInt(btn.dataset.idx)));
+        btn.addEventListener('mousemove', () => { active = parseInt(btn.dataset.idx); highlight(); });
+      });
+    }
+
+    function esc(s){ const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+    function highlight(){
+      results.querySelectorAll('.palette-item').forEach(b => {
+        b.classList.toggle('is-active', parseInt(b.dataset.idx) === active);
+      });
+      const el = results.querySelector('.palette-item.is-active');
+      if (el) el.scrollIntoView({ block:'nearest' });
+    }
+    function go(i){ const it = items[i]; if (it) window.location.href = it.url; }
+
+    let t;
+    input.addEventListener('input', () => { clearTimeout(t); t = setTimeout(() => runSearch(input.value), 160); });
+    input.addEventListener('keydown', e => {
+      if (e.key === 'ArrowDown'){ e.preventDefault(); active = Math.min(active+1, items.length-1); highlight(); }
+      else if (e.key === 'ArrowUp'){ e.preventDefault(); active = Math.max(active-1, 0); highlight(); }
+      else if (e.key === 'Enter'){ e.preventDefault(); go(active); }
+    });
+    overlay.addEventListener('click', e => { if (e.target === overlay) closePalette(); });
+    document.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')){ e.preventDefault(); overlay.classList.contains('hidden') ? openPalette() : closePalette(); }
+      else if (e.key === 'Escape' && !overlay.classList.contains('hidden')){ closePalette(); }
+    });
+  })();
+<?php if (!empty($flash)): ?>
+  /* ===== Flash dari server → tampilkan sebagai toast ===== */
+  window.addEventListener('DOMContentLoaded', function(){
+    toast(<?= json_encode($flash['msg']) ?>, <?= json_encode($flash['type'] === 'success' ? 'success' : 'error') ?>);
+  });
+<?php endif; ?>
 </script>
 <?= $extra_js ?? '' ?>
 </body>

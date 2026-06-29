@@ -56,6 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         (kode_barcode, nama_barang, merk, id_kategori, satuan, harga, gambar, stok_sekarang)
                         VALUES (?,?,?,?,?,?,?,0)")
                         ->execute([$barcode, $nama, $merk ?: null, $idKat, $satuan, $harga, $namaFile]);
+                    audit('tambah', 'barang', "Tambah barang \"$nama\" (barcode $barcode)");
                     flash('success', "Barang \"$nama\" berhasil ditambahkan.");
                 } else { // edit
                     $oldStmt = $pdo->prepare("SELECT gambar FROM barang WHERE id_barang = ?");
@@ -73,6 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $pdo->prepare("UPDATE barang SET kode_barcode=?, nama_barang=?, merk=?, id_kategori=?, satuan=?, harga=? WHERE id_barang=?")
                             ->execute([$barcode, $nama, $merk ?: null, $idKat, $satuan, $harga, $id]);
                     }
+                    audit('edit', 'barang', "Edit barang \"$nama\" (barcode $barcode)");
                     flash('success', "Barang \"$nama\" berhasil diperbarui.");
                 }
             }
@@ -81,11 +83,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($aksi === 'hapus') {
         $id = (int)($_POST['id'] ?? 0);
-        $g = $pdo->prepare("SELECT gambar FROM barang WHERE id_barang = ?");
+        $g = $pdo->prepare("SELECT nama_barang, gambar FROM barang WHERE id_barang = ?");
         $g->execute([$id]);
-        $gambar = $g->fetchColumn();
+        $row    = $g->fetch();
+        $gambar = $row['gambar'] ?? null;
+        $namaHapus = $row['nama_barang'] ?? "ID $id";
         // Hapus barang (transaksi terkait ikut terhapus via ON DELETE CASCADE)
         $pdo->prepare("DELETE FROM barang WHERE id_barang = ?")->execute([$id]);
+        audit('hapus', 'barang', "Hapus barang \"$namaHapus\"");
         if ($gambar) { // bersihkan file gambar
             $fp = __DIR__ . '/../assets/uploads/' . $gambar;
             if (is_file($fp)) @unlink($fp);
@@ -100,19 +105,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // ============ AMBIL DATA ============
 $kategori = $pdo->query("SELECT * FROM kategori ORDER BY nama_kategori")->fetchAll();
 
-$q = trim($_GET['q'] ?? '');
-$sql = "SELECT b.*, k.nama_kategori FROM barang b
-        LEFT JOIN kategori k ON k.id_kategori = b.id_kategori";
+$q   = trim($_GET['q'] ?? '');
+$low = isset($_GET['low']);   // filter stok menipis (≤ 5)
+
+$sql    = "SELECT b.*, k.nama_kategori FROM barang b
+           LEFT JOIN kategori k ON k.id_kategori = b.id_kategori";
+$where  = [];
+$params = [];
 if ($q !== '') {
-    $sql .= " WHERE b.nama_barang LIKE ? OR b.kode_barcode LIKE ? OR b.merk LIKE ?";
-    $sql .= " ORDER BY b.created_at DESC";
-    $stmt = $pdo->prepare($sql);
-    $stmt->execute(["%$q%", "%$q%", "%$q%"]);
-    $barang = $stmt->fetchAll();
-} else {
-    $sql .= " ORDER BY b.created_at DESC";
-    $barang = $pdo->query($sql)->fetchAll();
+    $where[]  = "(b.nama_barang LIKE ? OR b.kode_barcode LIKE ? OR b.merk LIKE ?)";
+    $params[] = "%$q%"; $params[] = "%$q%"; $params[] = "%$q%";
 }
+if ($low) {
+    $where[] = "b.stok_sekarang <= 5";
+}
+if ($where) $sql .= " WHERE " . implode(' AND ', $where);
+$sql .= $low ? " ORDER BY b.stok_sekarang ASC" : " ORDER BY b.created_at DESC";
+
+$stmt = $pdo->prepare($sql);
+$stmt->execute($params);
+$barang = $stmt->fetchAll();
 
 $page_title = 'Data Barang';
 $active     = 'barang';
@@ -122,10 +134,17 @@ require __DIR__ . '/../includes/header.php';
 <!-- TOOLBAR -->
 <div class="flex flex-col sm:flex-row sm:items-center gap-3 mb-5">
   <form method="GET" class="relative flex-1 max-w-sm">
+    <?php if ($low): ?><input type="hidden" name="low" value="1"><?php endif; ?>
     <i data-lucide="search" class="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"></i>
     <input type="text" name="q" value="<?= e($q) ?>" placeholder="Cari nama, barcode, atau merk..."
       class="w-full rounded-xl bg-white border border-slate-200 pl-10 pr-4 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition">
   </form>
+  <?php if ($low): ?>
+    <a href="<?= BASE_URL ?>/karyawan/barang.php" class="inline-flex items-center gap-1.5 px-3 py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-sm font-medium hover:bg-amber-100 transition">
+      <i data-lucide="alert-triangle" class="w-4 h-4"></i> Stok menipis
+      <i data-lucide="x" class="w-3.5 h-3.5 opacity-70"></i>
+    </a>
+  <?php endif; ?>
   <button onclick="openTambah()" class="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition shadow-lg shadow-blue-600/25">
     <i data-lucide="plus" class="w-4 h-4"></i> Tambah Barang
   </button>
@@ -179,6 +198,7 @@ require __DIR__ . '/../includes/header.php';
             <td class="px-5 py-3.5"><span class="inline-block px-2.5 py-1 rounded-lg text-xs font-bold <?= $stokCls ?>"><?= $stok ?> <?= e($b['satuan']) ?></span></td>
             <td class="px-5 py-3.5">
               <div class="flex items-center justify-end gap-2">
+                <a href="<?= BASE_URL ?>/karyawan/barang_riwayat.php?id=<?= (int)$b['id_barang'] ?>" class="grid place-items-center w-8 h-8 rounded-lg text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition" title="Riwayat"><i data-lucide="history" class="w-4 h-4"></i></a>
                 <button onclick='openEdit(<?= e($data) ?>)' class="grid place-items-center w-8 h-8 rounded-lg text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition" title="Edit"><i data-lucide="pencil" class="w-4 h-4"></i></button>
                 <form method="POST" data-confirm="Riwayat transaksi barang ini juga akan ikut terhapus." data-confirm-title="Hapus barang?" data-confirm-ok="Ya, hapus" data-confirm-variant="danger" class="inline">
                   <?= csrf_field() ?>
