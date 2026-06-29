@@ -13,6 +13,7 @@ $menuMain = [
 $menuAdmin = [
   ['karyawan', 'Kelola Karyawan','users',        BASE_URL . '/admin/karyawan.php'],
   ['laporan',  'Laporan','bar-chart-3',          BASE_URL . '/admin/laporan.php'],
+  ['audit',    'Log Aktivitas','scroll-text',    BASE_URL . '/admin/audit.php'],
 ];
 $initial = strtoupper(mb_substr($u['nama'] ?: 'U', 0, 1));
 

@@ -33,6 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $pdo->prepare("UPDATE barang SET stok_sekarang = stok_sekarang + ? WHERE id_barang = ?")
                         ->execute([$jumlah, $idBarang]);
                     $pdo->commit();
+                    audit('tambah', 'stok_masuk', "Stok masuk +$jumlah unit (barang ID $idBarang)");
                     flash('success', "Barang masuk berhasil dicatat (+$jumlah unit).");
                 } catch (Exception $ex) {
                     if ($pdo->inTransaction()) $pdo->rollBack();
@@ -66,6 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         ->execute([$row['jumlah'], $row['id_barang']]);
                     $pdo->prepare("DELETE FROM stok_masuk WHERE id = ?")->execute([$id]);
                     $pdo->commit();
+                    audit('void', 'stok_masuk', "Batal stok masuk #$id (−{$row['jumlah']} unit, barang ID {$row['id_barang']})");
                     flash('success', 'Transaksi dibatalkan & stok disesuaikan.');
                 }
             } catch (Exception $ex) {

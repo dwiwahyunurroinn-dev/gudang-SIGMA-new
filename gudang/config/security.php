@@ -63,3 +63,47 @@ function get_flash(): ?array {
     }
     return null;
 }
+
+// ===== Audit Trail =====
+// Tabel dibuat otomatis saat pertama kali dipakai — tidak perlu SQL manual.
+function audit_ensure(): void {
+    global $pdo;
+    if (!isset($pdo)) return;
+    static $done = false;
+    if ($done) return;
+    $pdo->exec("CREATE TABLE IF NOT EXISTS audit_log (
+        id         INT AUTO_INCREMENT PRIMARY KEY,
+        user_id    INT NULL,
+        user_nama  VARCHAR(150) NULL,
+        aksi       VARCHAR(50)  NOT NULL,
+        entitas    VARCHAR(50)  NOT NULL,
+        deskripsi  VARCHAR(500) NULL,
+        ip         VARCHAR(45)  NULL,
+        created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_created (created_at),
+        INDEX idx_entitas (entitas)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    $done = true;
+}
+
+// Catat satu aktivitas. Tidak pernah menggagalkan alur utama bila audit error.
+function audit(string $aksi, string $entitas, string $deskripsi = ''): void {
+    global $pdo;
+    if (!isset($pdo)) return;
+    try {
+        audit_ensure();
+        $u = current_user();
+        $pdo->prepare("INSERT INTO audit_log (user_id, user_nama, aksi, entitas, deskripsi, ip)
+                       VALUES (?,?,?,?,?,?)")
+            ->execute([
+                $u['id'] ?: null,
+                $u['nama'] ?: null,
+                $aksi,
+                $entitas,
+                $deskripsi !== '' ? mb_substr($deskripsi, 0, 500) : null,
+                $_SERVER['REMOTE_ADDR'] ?? null,
+            ]);
+    } catch (\Throwable $e) {
+        // sengaja diabaikan — audit tidak boleh mengganggu operasi utama
+    }
+}

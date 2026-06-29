@@ -56,6 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         (kode_barcode, nama_barang, merk, id_kategori, satuan, harga, gambar, stok_sekarang)
                         VALUES (?,?,?,?,?,?,?,0)")
                         ->execute([$barcode, $nama, $merk ?: null, $idKat, $satuan, $harga, $namaFile]);
+                    audit('tambah', 'barang', "Tambah barang \"$nama\" (barcode $barcode)");
                     flash('success', "Barang \"$nama\" berhasil ditambahkan.");
                 } else { // edit
                     $oldStmt = $pdo->prepare("SELECT gambar FROM barang WHERE id_barang = ?");
@@ -73,6 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $pdo->prepare("UPDATE barang SET kode_barcode=?, nama_barang=?, merk=?, id_kategori=?, satuan=?, harga=? WHERE id_barang=?")
                             ->execute([$barcode, $nama, $merk ?: null, $idKat, $satuan, $harga, $id]);
                     }
+                    audit('edit', 'barang', "Edit barang \"$nama\" (barcode $barcode)");
                     flash('success', "Barang \"$nama\" berhasil diperbarui.");
                 }
             }
@@ -81,11 +83,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($aksi === 'hapus') {
         $id = (int)($_POST['id'] ?? 0);
-        $g = $pdo->prepare("SELECT gambar FROM barang WHERE id_barang = ?");
+        $g = $pdo->prepare("SELECT nama_barang, gambar FROM barang WHERE id_barang = ?");
         $g->execute([$id]);
-        $gambar = $g->fetchColumn();
+        $row    = $g->fetch();
+        $gambar = $row['gambar'] ?? null;
+        $namaHapus = $row['nama_barang'] ?? "ID $id";
         // Hapus barang (transaksi terkait ikut terhapus via ON DELETE CASCADE)
         $pdo->prepare("DELETE FROM barang WHERE id_barang = ?")->execute([$id]);
+        audit('hapus', 'barang', "Hapus barang \"$namaHapus\"");
         if ($gambar) { // bersihkan file gambar
             $fp = __DIR__ . '/../assets/uploads/' . $gambar;
             if (is_file($fp)) @unlink($fp);

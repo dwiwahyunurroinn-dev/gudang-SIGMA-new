@@ -27,6 +27,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['nama']    = $user['nama'];
             $_SESSION['role']    = $user['role'];
+            audit('login', 'auth', "Login berhasil sebagai {$user['role']}");
             $dest = $user['role'] === 'admin' ? '/admin/dashboard.php' : '/karyawan/dashboard.php';
             $redirect = BASE_URL . $dest; // tidak langsung pindah — animasi keluar dulu
         } else {

@@ -49,6 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 $pdo->commit();
+                audit('tambah', 'stok_keluar', "Buat invoice $nomor (" . count($keranjang) . " item)" . ($pelanggan ? " untuk $pelanggan" : ""));
                 flash('success', "Transaksi berhasil dibuat. No. Invoice: $nomor");
             } catch (Exception $ex) {
                 if ($pdo->inTransaction()) $pdo->rollBack();
@@ -76,6 +77,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     foreach ($items as $it) $up->execute([$it['jumlah'], $it['id_barang']]);
                     $pdo->prepare("DELETE FROM stok_keluar WHERE nomor_invoice = ?")->execute([$nomor]);
                     $pdo->commit();
+                    audit('void', 'stok_keluar', "Batal invoice $nomor & kembalikan stok");
                     flash('success', "Invoice $nomor dibatalkan & stok dikembalikan.");
                 }
             } catch (Exception $ex) {
