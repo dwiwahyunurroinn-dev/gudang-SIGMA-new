@@ -15,6 +15,9 @@ $menuAdmin = [
   ['laporan',  'Laporan','bar-chart-3',          BASE_URL . '/admin/laporan.php'],
 ];
 $initial = strtoupper(mb_substr($u['nama'] ?: 'U', 0, 1));
+
+// Jumlah barang yang perlu restock (stok ≤ 5) — untuk badge notifikasi di topbar
+$lowStock = (int) $pdo->query("SELECT COUNT(*) FROM barang WHERE stok_sekarang <= 5")->fetchColumn();
 ?>
 <!DOCTYPE html>
 <html lang="id">
@@ -22,6 +25,8 @@ $initial = strtoupper(mb_substr($u['nama'] ?: 'U', 0, 1));
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title><?= e($page_title ?? 'Dashboard') ?> — SIGMA</title>
+  <!-- Terapkan tema sebelum render agar tidak ada kedipan (FOUC) -->
+  <script>(function(){try{if(localStorage.getItem('sigma-theme')==='dark'){document.documentElement.classList.add('dark');}}catch(e){}})();</script>
   <script src="<?= BASE_URL ?>/assets/js/tailwind.js"></script>
   <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/style.css">
 </head>
@@ -81,17 +86,27 @@ $initial = strtoupper(mb_substr($u['nama'] ?: 'U', 0, 1));
     <header class="sticky top-0 z-20 glass border-b border-slate-200 h-16 flex items-center gap-4 px-4 sm:px-6">
       <button onclick="toggleSidebar()" class="lg:hidden grid place-items-center w-10 h-10 rounded-lg hover:bg-slate-100 transition"><i data-lucide="menu" class="w-5 h-5"></i></button>
       <h1 class="font-semibold text-slate-900"><?= e($page_title ?? 'Dashboard') ?></h1>
-      <div class="ml-auto flex items-center gap-3">
+      <div class="ml-auto flex items-center gap-2 sm:gap-3">
+        <!-- Pemicu command palette -->
+        <button type="button" onclick="openPalette()" class="hidden md:inline-flex items-center gap-2 pl-3 pr-2 py-2 rounded-xl border border-slate-200 text-slate-400 hover:text-slate-600 hover:border-slate-300 transition text-sm">
+          <i data-lucide="search" class="w-4 h-4"></i>
+          <span>Cari...</span>
+          <kbd class="ml-1 text-[11px] font-medium bg-slate-100 text-slate-500 rounded px-1.5 py-0.5 border border-slate-200">Ctrl K</kbd>
+        </button>
+        <!-- Notifikasi stok menipis -->
+        <a href="<?= BASE_URL ?>/karyawan/barang.php?low=1" title="Stok menipis" class="relative grid place-items-center w-9 h-9 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition">
+          <i data-lucide="bell" class="w-5 h-5"></i>
+          <?php if ($lowStock > 0): ?>
+            <span class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 grid place-items-center rounded-full bg-rose-600 text-white text-[10px] font-bold leading-none"><?= $lowStock > 99 ? '99+' : $lowStock ?></span>
+          <?php endif; ?>
+        </a>
+        <!-- Tombol ganti tema -->
+        <button type="button" onclick="toggleTheme()" title="Ganti tema terang/gelap" class="theme-toggle-btn grid place-items-center w-9 h-9 rounded-xl text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition">
+          <i data-lucide="moon" class="w-5 h-5"></i>
+        </button>
         <span class="hidden sm:block text-sm text-slate-500">Halo, <b class="text-slate-700 font-medium"><?= e($u['nama']) ?></b></span>
         <span class="grid place-items-center w-9 h-9 rounded-full bg-blue-600 text-white font-semibold text-sm"><?= e($initial) ?></span>
       </div>
     </header>
 
     <main class="p-4 sm:p-6 lg:p-8 flex-1">
-      <?php if ($flash): ?>
-        <div class="mb-6 flex items-center gap-2 rounded-xl px-4 py-3 text-sm border
-          <?= $flash['type']==='success' ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-rose-50 border-rose-200 text-rose-700' ?>">
-          <i data-lucide="<?= $flash['type']==='success' ? 'check-circle' : 'alert-circle' ?>" class="w-4 h-4 shrink-0"></i>
-          <?= e($flash['msg']) ?>
-        </div>
-      <?php endif; ?>
