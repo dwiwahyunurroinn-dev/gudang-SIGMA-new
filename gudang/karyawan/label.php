@@ -98,7 +98,7 @@ function toggleAll(){
 function buatLabel(){
   const copies = Math.max(1, parseInt(document.getElementById('copies').value) || 1);
   const dipilih = [...document.querySelectorAll('.bk')].filter(b => b.checked);
-  if (dipilih.length === 0){ alert('Pilih minimal satu barang dulu.'); return; }
+  if (dipilih.length === 0){ toast('Pilih minimal satu barang dulu.', 'warning'); return; }
 
   const sheet = document.getElementById('labelSheet');
   sheet.innerHTML = '';

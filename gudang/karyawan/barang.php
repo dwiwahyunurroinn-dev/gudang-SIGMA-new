@@ -180,7 +180,7 @@ require __DIR__ . '/../includes/header.php';
             <td class="px-5 py-3.5">
               <div class="flex items-center justify-end gap-2">
                 <button onclick='openEdit(<?= e($data) ?>)' class="grid place-items-center w-8 h-8 rounded-lg text-slate-500 hover:bg-blue-50 hover:text-blue-600 transition" title="Edit"><i data-lucide="pencil" class="w-4 h-4"></i></button>
-                <form method="POST" onsubmit="return confirm('Hapus barang ini? Riwayat transaksinya juga akan terhapus.')" class="inline">
+                <form method="POST" data-confirm="Riwayat transaksi barang ini juga akan ikut terhapus." data-confirm-title="Hapus barang?" data-confirm-ok="Ya, hapus" data-confirm-variant="danger" class="inline">
                   <?= csrf_field() ?>
                   <input type="hidden" name="aksi" value="hapus">
                   <input type="hidden" name="id" value="<?= (int)$b['id_barang'] ?>">
@@ -343,7 +343,7 @@ html5Qr = new Html5Qrcode("reader", {
   html5Qr.start({ facingMode:"environment" }, { fps:10, qrbox:{width:300,height:200} },
     (text)=>{ m('barcode').value=text; cekBarcode(text); stopScan(); },
     ()=>{}
-  ).catch(e=>{ alert('Tidak dapat mengakses kamera: '+e+'\nPastikan izin kamera diberikan.'); document.getElementById('scanWrap').classList.add('hidden'); });
+  ).catch(e=>{ toast('Tidak dapat mengakses kamera: '+e+'. Pastikan izin kamera diberikan.', 'error'); document.getElementById('scanWrap').classList.add('hidden'); });
 }
 function stopScan(){
   if(html5Qr){ html5Qr.stop().then(()=>html5Qr.clear()).catch(()=>{}); html5Qr=null; }

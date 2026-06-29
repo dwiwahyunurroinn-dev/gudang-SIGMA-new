@@ -143,7 +143,7 @@ require __DIR__ . '/../includes/header.php';
                   <i data-lucide="pencil" class="w-4 h-4"></i>
                 </button>
                 <?php if (!$isMe): ?>
-                <form method="POST" onsubmit="return confirm('Hapus akun ini? Tindakan tidak bisa dibatalkan.')" class="inline">
+                <form method="POST" data-confirm="Tindakan ini tidak bisa dibatalkan." data-confirm-title="Hapus akun?" data-confirm-ok="Ya, hapus" data-confirm-variant="danger" class="inline">
                   <?= csrf_field() ?>
                   <input type="hidden" name="aksi" value="hapus">
                   <input type="hidden" name="id" value="<?= (int)$row['id'] ?>">
