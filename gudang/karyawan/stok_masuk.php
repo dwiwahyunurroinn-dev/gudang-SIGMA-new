@@ -189,7 +189,7 @@ $inp = "w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-2.5 text-s
                 <td class="px-5 py-3.5"><span class="font-bold text-emerald-600">+<?= (int)$r['jumlah'] ?></span> <span class="text-slate-400 text-xs"><?= e($r['satuan']) ?></span></td>
                 <td class="px-5 py-3.5 text-slate-500"><?= e($r['user_nama'] ?: '-') ?></td>
                 <td class="px-5 py-3.5">
-                  <form method="POST" onsubmit="return confirm('Batalkan transaksi ini? Stok akan dikurangi kembali.')" class="text-right">
+                  <form method="POST" data-confirm="Stok barang akan dikurangi kembali sesuai jumlah transaksi ini." data-confirm-title="Batalkan transaksi?" data-confirm-ok="Ya, batalkan" data-confirm-variant="danger" class="text-right">
                     <?= csrf_field() ?>
                     <input type="hidden" name="aksi" value="batal">
                     <input type="hidden" name="id" value="<?= (int)$r['id'] ?>">
@@ -226,7 +226,7 @@ function pilihDariBarcode(kode){
   for (const o of sel.options){
     if (o.dataset.kode === kode){ sel.value = o.value; updateStok(); return; }
   }
-  alert('Barang dengan barcode "' + kode + '" belum terdaftar. Tambahkan dulu di menu Data Barang.');
+  toast('Barang dengan barcode "' + kode + '" belum terdaftar. Tambahkan dulu di menu Data Barang.', 'warning');
 }
 
 // ===== Scanner kamera =====
@@ -253,7 +253,7 @@ function startScan(){
   html5Qr.start({ facingMode:"environment" }, { fps:10, qrbox:{width:300,height:200} },
     (text)=>{ document.getElementById('f-barcode').value = text; pilihDariBarcode(text); stopScan(); },
     ()=>{}
-  ).catch(e=>{ alert('Tidak dapat mengakses kamera: ' + e); document.getElementById('scanWrap').classList.add('hidden'); });
+  ).catch(e=>{ toast('Tidak dapat mengakses kamera: ' + e, 'error'); document.getElementById('scanWrap').classList.add('hidden'); });
 }
 function stopScan(){
   if (html5Qr){ html5Qr.stop().then(()=>html5Qr.clear()).catch(()=>{}); html5Qr=null; }

@@ -250,7 +250,7 @@ $inp = "w-full rounded-xl bg-slate-50 border border-slate-200 px-4 py-2.5 text-s
             <td class="px-5 py-3.5">
               <div class="flex items-center justify-end gap-3">
                 <a href="<?= BASE_URL ?>/karyawan/invoice_view.php?inv=<?= urlencode($r['nomor_invoice']) ?>" class="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline"><i data-lucide="eye" class="w-3.5 h-3.5"></i> Lihat</a>
-                <form method="POST" onsubmit="return confirm('Batalkan invoice ini? Stok semua barang akan dikembalikan.')">
+                <form method="POST" data-confirm="Stok semua barang pada invoice ini akan dikembalikan." data-confirm-title="Batalkan invoice?" data-confirm-ok="Ya, batalkan" data-confirm-variant="danger">
                   <?= csrf_field() ?>
                   <input type="hidden" name="aksi" value="batal_invoice">
                   <input type="hidden" name="nomor_invoice" value="<?= e($r['nomor_invoice']) ?>">
@@ -281,18 +281,18 @@ function updateStok(){
 function pilihDariBarcode(kode){
   kode = (kode||'').trim(); if(!kode) return;
   for (const o of sel.options){ if (o.dataset.kode === kode){ sel.value=o.value; updateStok(); return; } }
-  alert('Barang dengan barcode "'+kode+'" tidak tersedia (mungkin stok 0 atau belum terdaftar).');
+  toast('Barang dengan barcode "'+kode+'" tidak tersedia (mungkin stok 0 atau belum terdaftar).', 'warning');
 }
 
 function addToCart(){
   const o = sel.options[sel.selectedIndex];
-  if (!o || !o.value){ alert('Pilih barang dulu.'); return; }
+  if (!o || !o.value){ toast('Pilih barang dulu.', 'warning'); return; }
   const jml = parseInt(document.getElementById('f-jumlah').value)||0;
-  if (jml<=0){ alert('Jumlah harus lebih dari 0.'); return; }
+  if (jml<=0){ toast('Jumlah harus lebih dari 0.', 'warning'); return; }
   const stok = parseInt(o.dataset.stok);
   const ada = cart.find(c=>c.id===o.value);
   const totalReq = (ada?ada.jumlah:0)+jml;
-  if (totalReq>stok){ alert('Stok tidak mencukupi. Tersisa '+stok+'.'); return; }
+  if (totalReq>stok){ toast('Stok tidak mencukupi. Tersisa '+stok+'.', 'error'); return; }
   if (ada) ada.jumlah = totalReq;
   else cart.push({ id:o.value, nama:o.dataset.nama, kode:o.dataset.kode, harga:parseInt(o.dataset.harga), satuan:o.dataset.satuan, jumlah:jml });
   renderCart();
@@ -340,7 +340,7 @@ function startScan(){
   });
   html5Qr.start({facingMode:"environment"},{fps:10,qrbox:{width:300,height:200}},
     (t)=>{ document.getElementById('f-barcode').value=t; pilihDariBarcode(t); stopScan(); }, ()=>{}
-  ).catch(e=>{ alert('Tidak dapat mengakses kamera: '+e); document.getElementById('scanWrap').classList.add('hidden'); });
+  ).catch(e=>{ toast('Tidak dapat mengakses kamera: '+e, 'error'); document.getElementById('scanWrap').classList.add('hidden'); });
 }
 function stopScan(){ if(html5Qr){ html5Qr.stop().then(()=>html5Qr.clear()).catch(()=>{}); html5Qr=null; } document.getElementById('scanWrap').classList.add('hidden'); }
 </script>
