@@ -30,6 +30,40 @@ Khusus untuk pemula. Setiap istilah dijelaskan pelan-pelan. 😊
 
 ---
 
+## 🔑 APA ITU `define()`? (penjelasan lengkap)
+
+`define('NAMA', nilai)` membuat sebuah **KONSTANTA**.
+
+**Konstanta = nilai tetap yang tidak bisa diubah** setelah dibuat.
+
+Bedakan dengan **variabel** (`$x`) yang isinya bisa ganti-ganti:
+
+> 🪧 **Variabel `$x`** itu seperti **papan tulis** — bisa dihapus & ditulis ulang kapan saja.
+> 🪨 **Konstanta `define`** itu seperti **pahatan di batu** — sekali dibuat, permanen.
+
+**Ciri-ciri konstanta:**
+- Ditulis **HURUF BESAR** (kebiasaan programmer), contoh: `BASE_URL`.
+- **Tanpa tanda `$`** di depannya.
+- Bisa dipakai di **mana saja** di seluruh program.
+
+**Contoh di proyek:**
+```php
+define('BASE_URL', '/gudang');
+```
+→ Membuat konstanta `BASE_URL` berisi teks `/gudang`.
+Dipakai untuk menyusun alamat link. Contoh `BASE_URL . "/login.php"` menghasilkan
+`/gudang/login.php`. **Keuntungannya:** kalau folder ganti nama, cukup ubah **satu baris ini**,
+semua link di seluruh aplikasi otomatis ikut berubah.
+
+| | Variabel `$x` | Konstanta `define` |
+|---|---|---|
+| Pakai tanda `$`? | Ya (`$x`) | Tidak (`BASE_URL`) |
+| Bisa diubah? | Ya | **Tidak** (tetap/permanen) |
+| Penulisan | huruf kecil | HURUF BESAR |
+| Ibarat | papan tulis | pahatan di batu |
+
+---
+
 # 📄 FILE 1: `config/database.php` — menyambung ke database
 
 Tugasnya cuma satu: **membuka sambungan ke database** supaya halaman lain bisa
@@ -267,3 +301,130 @@ function audit(string $aksi, string $entitas, string $deskripsi = ''): void {
 3. **`$_POST`** → data yang dikirim dari formulir.
 4. **`isset()`** → cek "ada/terisi atau tidak".
 5. **Token CSRF** → tiket rahasia anti-pemalsuan formulir.
+
+---
+
+# 🔁 CARA BACA KODE DENGAN "JIKA … MAKA …"
+
+Setiap `if (...)` di PHP sebenarnya berarti **"JIKA (syarat) MAKA (lakukan)"**.
+Kalau kamu bisa membaca tiap baris seperti ini, kamu otomatis paham logikanya.
+Berikut SEMUA logika di dua file, diterjemahkan ke "jika–maka".
+
+### Dari `database.php`
+
+```php
+try { $pdo = new PDO(...); }
+catch (PDOException $e) { die("Koneksi database gagal: ..."); }
+```
+> **JIKA** sambungan ke database **berhasil**,
+> **MAKA** simpan sambungan itu di `$pdo` (siap dipakai).
+>
+> **JIKA** sambungan **gagal** (database mati / salah nama),
+> **MAKA** tampilkan pesan "Koneksi database gagal" dan **hentikan** program.
+
+### Dari `security.php`
+
+```php
+if (session_status() === PHP_SESSION_NONE) { session_start(); }
+```
+> **JIKA** sesi belum dimulai,
+> **MAKA** mulai sesi (aktifkan "kotak ingatan" `$_SESSION`).
+
+```php
+if (!defined('BASE_URL')) { define('BASE_URL', '/gudang'); }
+```
+> **JIKA** konstanta `BASE_URL` belum dibuat,
+> **MAKA** buat sekarang berisi `/gudang`.
+
+```php
+// require_login()
+if (!isset($_SESSION['user_id'])) {
+    header("Location: .../login.php");
+    exit;
+}
+```
+> **JIKA** user **belum login** (tidak ada tanda `user_id` di ingatan),
+> **MAKA** lempar ke halaman login lalu **stop**.
+> *(JIKA sudah login, MAKA tidak terjadi apa-apa — lanjut buka halaman.)*
+
+```php
+// require_role()
+if (($_SESSION['role'] ?? '') !== $role) {
+    http_response_code(403);
+    die("⛔ Akses ditolak...");
+}
+```
+> **JIKA** peran user **bukan** peran yang diminta (mis. karyawan buka halaman admin),
+> **MAKA** tolak akses (403) dan **hentikan**.
+
+```php
+// csrf_token()
+if (empty($_SESSION['csrf'])) {
+    $_SESSION['csrf'] = bin2hex(random_bytes(32));
+}
+```
+> **JIKA** belum punya token rahasia,
+> **MAKA** buatkan token acak baru lalu simpan.
+> *(JIKA sudah punya, MAKA pakai yang lama.)*
+
+```php
+// check_csrf()
+if (!isset($_POST['csrf']) || !hash_equals($_SESSION['csrf'] ?? '', $_POST['csrf'])) {
+    http_response_code(419);
+    die("Token keamanan tidak valid...");
+}
+```
+> **JIKA** formulir tidak mengirim token, **ATAU** token yang dikirim **tidak cocok**
+> dengan token asli,
+> **MAKA** tolak permintaan dan **hentikan** (cegah pemalsuan).
+> *(Tanda `||` artinya "ATAU".)*
+
+```php
+// get_flash()
+if (!empty($_SESSION['flash'])) {
+    $f = $_SESSION['flash'];
+    unset($_SESSION['flash']);
+    return $f;
+}
+return null;
+```
+> **JIKA** ada pesan notifikasi yang dititipkan,
+> **MAKA** ambil pesannya, hapus (agar tampil sekali saja), lalu kembalikan.
+> **JIKA tidak ada**, **MAKA** kembalikan kosong (`null`).
+
+```php
+// audit_ensure()
+if (!isset($pdo)) return;
+if ($done)       return;
+```
+> **JIKA** tidak ada sambungan database, **MAKA** berhenti (jangan lakukan apa-apa).
+> **JIKA** tabel sudah pernah dipastikan ada, **MAKA** berhenti (tidak usah diulang).
+
+```php
+// audit()
+if (!isset($pdo)) return;
+try { ... }
+catch (\Throwable $e) { /* diabaikan */ }
+```
+> **JIKA** tidak ada sambungan database, **MAKA** berhenti.
+> **JIKA** saat mencatat aktivitas terjadi error, **MAKA** abaikan saja
+> (operasi utama tetap jalan, audit tidak boleh mengganggu).
+
+---
+
+## 🎯 TRIK MENGHAFAL
+
+Saat membaca kode apa pun, ubah `if` jadi pertanyaan **"JIKA apa?"** lalu lihat
+isi `{ }` sebagai **"MAKA lakukan ini"**. Contoh cepat:
+
+| Kode | Dibaca |
+|---|---|
+| `if (!isset($x))` | "JIKA `$x` tidak ada..." |
+| `if (empty($x))` | "JIKA `$x` kosong..." |
+| `if ($a !== $b)` | "JIKA `$a` tidak sama dengan `$b`..." |
+| `if ($a == $b)` | "JIKA `$a` sama dengan `$b`..." |
+| `... || ...` | "...ATAU..." |
+| `... && ...` | "...DAN..." |
+| `!` (tanda seru) | "TIDAK / BUKAN" |
+
+Dengan trik ini, kamu bisa "membaca" hampir semua kode PHP seperti kalimat biasa. 😎
